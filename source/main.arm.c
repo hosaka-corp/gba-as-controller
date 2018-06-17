@@ -5,12 +5,14 @@
 #include <gba_timers.h>
 #include "bios.h"
 
+#include <string.h>
+#include "AM_MAXSPEED_bin.h"
+
 #define ROM            ((uint8_t *)0x08000000)
 #define ROM_GPIODATA *((uint16_t *)0x080000C4)
 #define ROM_GPIODIR  *((uint16_t *)0x080000C6)
 #define ROM_GPIOCNT  *((uint16_t *)0x080000C8)
 
-//#define ANALOG
 
 enum {
 	CMD_ID = 0x00,
@@ -46,7 +48,8 @@ struct buttons {
 	uint16_t use_origin : 1;
 };
 
-static struct {
+//static struct {
+struct id {
 	uint8_t type[2];
 
 	struct {
@@ -55,9 +58,13 @@ static struct {
 		uint8_t origin : 1;
 		uint8_t        : 2;
 	} status;
-} id;
+};
+static struct id id;
 
-static struct {
+
+// `GCPadStatus` in dolphin
+//static struct {
+struct status {
 	struct buttons buttons;
 	struct { uint8_t x, y; } stick;
 	union {
@@ -89,7 +96,8 @@ static struct {
 			struct { uint8_t a, b; } button;
 		} mode4;
 	};
-} status;
+};
+static struct status status;
 
 static struct {
 	struct buttons buttons;
@@ -123,9 +131,11 @@ static bool has_motor(void)
 void SISetResponse(const void *buf, unsigned bits);
 int SIGetCommand(void *buf, unsigned bits);
 
+static u32 steps = 0;
 int IWRAM_CODE main(void)
 {
 	RegisterRamReset(RESET_ALL_REG);
+
 
 	REG_IE = IRQ_SERIAL | IRQ_TIMER2 | IRQ_TIMER1 | IRQ_TIMER0;
 	REG_IF = REG_IF;
@@ -136,9 +146,11 @@ int IWRAM_CODE main(void)
 	REG_TM1CNT_H = TIMER_START | TIMER_IRQ | TIMER_COUNT;
 	REG_TM0CNT_H = TIMER_START;
 
+
+	struct status *cursor = (struct status*)AM_MAXSPEED_bin;
+	u32 max_steps = AM_MAXSPEED_bin_size / 8;
 	SoundBias(0);
 	Halt();
-
 	while (true) {
 		int length = SIGetCommand(buffer, sizeof(buffer) * 8 + 1);
 		if (length < 9) continue;
@@ -231,6 +243,12 @@ int IWRAM_CODE main(void)
 							break;
 					}
 
+					if (steps < max_steps){
+						//SISetResponse(cursor, sizeof(status) * 8);
+						memcpy(&status, cursor, sizeof(uint8_t) * 8);
+						cursor++;
+						steps++;
+					}
 					SISetResponse(&status, sizeof(status) * 8);
 				}
 				break;

@@ -19,7 +19,7 @@ include $(DEVKITARM)/gba_rules
 TARGET		:=	$(shell basename $(CURDIR))_mb
 BUILD		:=	build
 SOURCES		:=	source
-DATA		:=
+DATA		:=	data
 GRAPHICS	:=	gfx	
 INCLUDES	:=
 
@@ -131,9 +131,12 @@ $(OUTPUT).elf	:	$(OFILES)
 
 #---------------------------------------------------------------------------------
 %.gba: %.elf
-	@$(OBJCOPY) -O binary $< $@
-	@echo built ... $(notdir $@)
-	@gbafix -tCONTROLLER -cGBAX -mEC -r$(shell git rev-list --count HEAD) $@
+
+	$(LD) -specs=gba_mb.specs $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+
+	$(OBJCOPY) -O binary $< $@
+	echo built ... $(notdir $@)
+	gbafix -tCONTROLLER -cGBAX -mEC -r$(shell git rev-list --count HEAD) $@
 
 #---------------------------------------------------------------------------------
 # The bin2o rule should be copied and modified
@@ -146,7 +149,7 @@ $(OUTPUT).elf	:	$(OFILES)
 %.bin.o	:	%.bin
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
-	@$(bin2o)
+	$(bin2o)
 
 #---------------------------------------------------------------------------------
 # This rule links in binary data with the .raw extension
@@ -154,7 +157,7 @@ $(OUTPUT).elf	:	$(OFILES)
 %.raw.o	:	%.raw
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
-	@$(bin2o)
+	$(bin2o)
 
 #---------------------------------------------------------------------------------
 # This rule creates assembly source files using grit
