@@ -5,14 +5,14 @@
 #include <gba_timers.h>
 #include "bios.h"
 
+#include <gba_console.h>
 #include <string.h>
-#include "AM_MAXSPEED_bin.h"
+#include "inputs_bin.h"
 
 #define ROM            ((uint8_t *)0x08000000)
 #define ROM_GPIODATA *((uint16_t *)0x080000C4)
 #define ROM_GPIODIR  *((uint16_t *)0x080000C6)
 #define ROM_GPIOCNT  *((uint16_t *)0x080000C8)
-
 
 enum {
 	CMD_ID = 0x00,
@@ -146,9 +146,12 @@ int IWRAM_CODE main(void)
 	REG_TM1CNT_H = TIMER_START | TIMER_IRQ | TIMER_COUNT;
 	REG_TM0CNT_H = TIMER_START;
 
+	consoleDemoInit();
 
-	struct status *cursor = (struct status*)AM_MAXSPEED_bin;
-	u32 max_steps = AM_MAXSPEED_bin_size / 8;
+	// Probably just do this by moving a pointer through an array of joybus responses
+	struct status *cursor = (struct status*)inputs_bin;
+	u32 max_steps = inputs_bin_size / 8;
+
 	SoundBias(0);
 	Halt();
 	while (true) {
@@ -181,7 +184,6 @@ int IWRAM_CODE main(void)
 						id.type[0] = 0x29;
 						id.type[1] = 0x00;
 					}
-
 					SISetResponse(&id, sizeof(id) * 8);
 				}
 				break;
@@ -189,6 +191,22 @@ int IWRAM_CODE main(void)
 				if (length == 25) {
 					id.status.mode  = buffer[1];
 					id.status.motor = buffer[2];
+
+
+					/* Handle replay inputs here. When our patch writes 0x00400b00,
+					 * start handing back replay inputs instead of using the buttons.
+					 */
+
+					if ( buffer[1] == 0xb){
+						if (steps < max_steps){
+							memcpy(&status, cursor, sizeof(uint8_t) * 8);
+							cursor++;
+							steps++;
+							consolePrintChar('.');
+						}
+						SISetResponse(&status, sizeof(status) * 8);
+						break;
+					}
 
 					status.buttons = origin.buttons;
 					status.stick.x = origin.stick.x;
@@ -241,13 +259,6 @@ int IWRAM_CODE main(void)
 							status.mode4.button.a   = (buttons & KEY_A ? 200 : origin.button.a);
 							status.mode4.button.b   = (buttons & KEY_B ? 200 : origin.button.b);
 							break;
-					}
-
-					if (steps < max_steps){
-						//SISetResponse(cursor, sizeof(status) * 8);
-						memcpy(&status, cursor, sizeof(uint8_t) * 8);
-						cursor++;
-						steps++;
 					}
 					SISetResponse(&status, sizeof(status) * 8);
 				}
