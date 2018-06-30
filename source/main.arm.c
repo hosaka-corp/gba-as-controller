@@ -146,8 +146,6 @@ int IWRAM_CODE main(void)
 	REG_TM1CNT_H = TIMER_START | TIMER_IRQ | TIMER_COUNT;
 	REG_TM0CNT_H = TIMER_START;
 
-	consoleDemoInit();
-
 	// Probably just do this by moving a pointer through an array of joybus responses
 	struct status *cursor = (struct status*)inputs_bin;
 	u32 max_steps = inputs_bin_size / 8;
@@ -161,18 +159,19 @@ int IWRAM_CODE main(void)
 		unsigned buttons     = ~REG_KEYINPUT;
 		origin.buttons.a     = !!(buttons & KEY_A);
 		origin.buttons.b     = !!(buttons & KEY_B);
-		origin.buttons.z     = !!(buttons & KEY_SELECT);
-		origin.buttons.start = !!(buttons & KEY_START);
-		#ifndef ANALOG
-		origin.buttons.right = !!(buttons & KEY_RIGHT);
-		origin.buttons.left  = !!(buttons & KEY_LEFT);
-		origin.buttons.up    = !!(buttons & KEY_UP);
-		origin.buttons.down  = !!(buttons & KEY_DOWN);
-		#endif
-		origin.buttons.r     = !!(buttons & KEY_R);
-		origin.buttons.l     = !!(buttons & KEY_L);
+		//origin.buttons.z     = !!(buttons & KEY_SELECT);
+		//origin.buttons.start = !!(buttons & KEY_START);
+		//#ifndef ANALOG
+		//origin.buttons.right = !!(buttons & KEY_RIGHT);
+		//origin.buttons.left  = !!(buttons & KEY_LEFT);
+		//origin.buttons.up    = !!(buttons & KEY_UP);
+		//origin.buttons.down  = !!(buttons & KEY_DOWN);
+		//#endif
+		//origin.buttons.r     = !!(buttons & KEY_R);
+		//origin.buttons.l     = !!(buttons & KEY_L);
 
 		switch (buffer[0]) {
+
 			case CMD_RESET:
 				id.status.motor = MOTOR_STOP;
 			case CMD_ID:
@@ -189,25 +188,13 @@ int IWRAM_CODE main(void)
 				break;
 			case CMD_STATUS:
 				if (length == 25) {
-					id.status.mode  = buffer[1];
-					id.status.motor = buffer[2];
-
-
-					/* Handle replay inputs here. When our patch writes 0x00400b00,
-					 * start handing back replay inputs instead of using the buttons.
-					 */
-
 					if ( buffer[1] == 0xb){
-						if (steps < max_steps){
-							memcpy(&status, cursor, sizeof(uint8_t) * 8);
-							cursor++;
-							steps++;
-							consolePrintChar('.');
-						}
-						SISetResponse(&status, sizeof(status) * 8);
+						SISetResponse(cursor++, sizeof(status) * 8);
 						break;
 					}
 
+					id.status.mode  = buffer[1];
+					id.status.motor = buffer[2];
 					status.buttons = origin.buttons;
 					status.stick.x = origin.stick.x;
 					status.stick.y = origin.stick.y;
